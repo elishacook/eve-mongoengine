@@ -85,6 +85,7 @@ class EveMongoengine(object):
 
     def __init__(self, app=None):
         self.models = {}
+        self._models_to_add = []
         if app is not None:
             self.init_app(app)
 
@@ -117,6 +118,10 @@ class EveMongoengine(object):
         self._parse_config()
         # overwrite default data layer to get proper mongoengine functionality
         app.data = self.datalayer_class(self)
+        
+        # actually add models that were added before init_app
+        for args, kwargs in self._models_to_add:
+            self._add_model(*args, **kwargs)
 
     def _set_default_settings(self, settings):
         """
@@ -128,8 +133,8 @@ class EveMongoengine(object):
         if 'item_methods' not in settings:
             # TODO: maybe get from self.app.supported_item_methods
             settings['item_methods'] = list(self.default_item_methods)
-
-    def add_model(self, models, lowercase=True, **settings):
+            
+    def add_model(self, *args, **kwargs):
         """
         Creates Eve settings for mongoengine model classes.
 
@@ -143,6 +148,12 @@ class EveMongoengine(object):
         :param settings: any other keyword argument will be treated as param
                          to settings dictionary.
         """
+        if hasattr(self, 'app'):
+            self._add_model(*args, **kwargs)
+        else:
+            self._models_to_add.append((args, kwargs))
+            
+    def _add_model(self, models, lowercase=True, **settings):
         self._set_default_settings(settings)
         if not isinstance(models, (list, tuple)):
             models = [models]
